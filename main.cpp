@@ -6,6 +6,7 @@
 #include<filesystem>
 #include<unistd.h>
 #include<sys/wait.h>
+#include<limits.h>
 using namespace std;
 
 string builtins_cmds[] = {"echo", "exit", "type", "cd"};
@@ -112,14 +113,14 @@ bool handle_command(vector<string> &command) {
             cerr << "Failed to fork\n";
             return 0;
         }
-        if(pid == 0) {
+        else if(pid == 0) {
             vector<char*> args;
             for(int i = 0; i < command.size(); i++) {
                 args.push_back(&command[i][0]);
             }
             args.push_back(nullptr);
 
-            if(execv(command_path.c_str(), args.data()) == -1) {
+            if(execvp(command_path.c_str(), args.data()) < 0) {
                 cerr << "Failed to execute command\n";
                 return 0;
             }
@@ -134,6 +135,18 @@ bool handle_command(vector<string> &command) {
     return 0;
 }
 
+string currdir() {
+    char cwd[PATH_MAX];
+
+    if(getcwd(cwd, sizeof(cwd)) != NULL) {
+        return (string)cwd;
+    } else {
+        cerr << "Failed_to_recognise_directory\n";
+    }
+
+    return "";
+}
+
 int main() {
     string command;
     bool exit = 0;
@@ -141,7 +154,8 @@ int main() {
     while(!exit) {
         cout << unitbuf;
         cerr << unitbuf;
-    
+
+        cout << currdir() << ":";
         cout << "$ ";
         getline(cin, command);
 
