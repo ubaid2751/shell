@@ -4,9 +4,11 @@
 #include<stdlib.h>
 #include<sstream>
 #include<filesystem>
+#include<unistd.h>
+#include<sys/wait.h>
 using namespace std;
 
-string builtins_cmds[] = {"echo", "exit", "type"};
+string builtins_cmds[] = {"echo", "exit", "type", "cd"};
 
 string get_path(string command) {
     string path_env = getenv("PATH");
@@ -28,17 +30,13 @@ string get_path(string command) {
 
 vector<string> parse_command(string command) {
     vector<string> args;
+    stringstream ss(command);
     string arg = "";
-    for(int i = 0; i < command.size(); i++) {
-        if(command[i] == ' ') {
-            args.push_back(arg);
-            arg = "";
-        } else {
-            arg += command[i];
-        }
+
+    while(ss >> arg) {
+        args.push_back(arg);
     }
 
-    args.push_back(arg);
     return args;
 }
 
@@ -50,7 +48,8 @@ void echo_command(vector<string> &command) {
 }
 
 bool search(string cmd) {
-    for(int i = 0; i < builtins_cmds->size(); i++) {
+    int num_builtins = sizeof(builtins_cmds) / sizeof(builtins_cmds[0]);
+    for(int i = 0; i < num_builtins; i++) {
         if(builtins_cmds[i] == cmd) {
             return true;
         }
@@ -93,6 +92,45 @@ bool handle_command(vector<string> &command) {
         }
     }
 
+    if(command[0] == "cd") {
+        if(command.size() == 1) {
+            chdir(getenv("HOME"));
+            return 1;
+        }
+        if(command.size() == 2) {
+            if(chdir(command[1].c_str()) == -1) {
+                cout << "cd: " << command[1] << ": No such file or directory\n";
+            }
+            return 1;
+        }
+    }
+
+    string command_path = get_path(command[0]);
+    if(!command_path.empty()) {
+        pid_t pid = fork();
+        if(pid == -1) {
+            cerr << "Failed to fork\n";
+            return 0;
+        }
+        if(pid == 0) {
+            vector<char*> args;
+            for(int i = 0; i < command.size(); i++) {
+                args.push_back(&command[i][0]);
+            }
+            args.push_back(nullptr);
+
+            if(execv(command_path.c_str(), args.data()) == -1) {
+                cerr << "Failed to execute command\n";
+                return 0;
+            }
+        }
+        else {
+            int status;
+            waitpid(pid, &status, 0);
+            return 1;
+        }
+    }
+
     return 0;
 }
 
@@ -108,11 +146,10 @@ int main() {
         getline(cin, command);
 
         vector<string> args = parse_command(command);
-        if(handle_command(args)) {
-            continue;
-        }
-        else {
-            cout << command << ": command not found\n";
+        if (!args.empty()) {
+            if (!handle_command(args)) {
+                cout << command << ": command not found\n";
+            }
         }
     }
 }
