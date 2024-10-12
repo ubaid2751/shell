@@ -8,6 +8,7 @@
 #include<sys/wait.h>
 #include<limits.h>
 #include<csignal>
+#include<termios.h>
 using namespace std;
 
 #define RESET   "\x1b[0m"
@@ -155,9 +156,20 @@ string currdir() {
     return "";
 }
 
+void sigint_handler(int sig) {
+    if(sig == 2) {
+        cout << "\n";
+        cout << GREEN << BOLD << currdir() << RESET << ":";
+        cout << BLUE << BOLD << "~$ " << RESET;
+        cout.flush();
+    }
+}
+
 int main() {
     string command;
     bool exit = 0;
+
+    signal(SIGINT, sigint_handler);
 
     while(!exit) {
         cout << unitbuf;
