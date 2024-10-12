@@ -7,7 +7,7 @@
 #include<unistd.h>
 #include<sys/wait.h>
 #include<limits.h>
-#include<termios.h>
+#include<csignal>
 using namespace std;
 
 #define RESET   "\x1b[0m"
@@ -19,8 +19,9 @@ using namespace std;
 #define MAGENTA "\x1b[35m"
 #define CYAN    "\x1b[36m"
 
+#define ctrl(x) ((x) & 0x1f)
+
 string builtins_cmds[] = {"echo", "exit", "type", "cd"};
-vector<string> history;
 
 string get_path(string command) {
     string path_env = getenv("PATH");
@@ -117,30 +118,26 @@ bool handle_command(vector<string> &command) {
         }
     }
 
-    string command_path = get_path(command[0]);
-    if(!command_path.empty()) {
-        pid_t pid = fork();
-        if(pid == -1) {
-            cerr << "Failed to fork\n";
-            return 0;
+    pid_t pid = fork();
+    if(pid == -1) {
+        cerr << "Failed to fork\n";
+        return 0;
+    }
+    else if(pid == 0) {
+        vector<char*> args;
+        for(int i = 0; i < command.size(); i++) {
+            args.push_back(&command[i][0]);
         }
-        else if(pid == 0) {
-            vector<char*> args;
-            for(int i = 0; i < command.size(); i++) {
-                args.push_back(&command[i][0]);
-            }
-            args.push_back(nullptr);
-
-            if(execvp(command_path.c_str(), args.data()) < 0) {
-                cerr << "Failed to execute command\n";
-                return 0;
-            }
+        args.push_back(nullptr);
+        if(execvp(command[0].c_str(), args.data()) < 0) {
+            cerr << "Failed to execute command\n";
+            exit(EXIT_FAILURE);
         }
-        else {
-            int status;
-            waitpid(pid, &status, 0);
-            return 1;
-        }
+    }
+    else {
+        int status;
+        waitpid(pid, &status, 0);
+        return 1;
     }
 
     return 0;
@@ -161,7 +158,6 @@ string currdir() {
 int main() {
     string command;
     bool exit = 0;
-    int history_idx = 0;
 
     while(!exit) {
         cout << unitbuf;
@@ -169,12 +165,8 @@ int main() {
 
         cout << GREEN << BOLD << currdir() << RESET << ":";
         cout << BLUE << BOLD << "~$ " << RESET;
-        getline(cin, command);
 
-        if(!command.empty()) {
-            history.push_back(command);
-            history_idx = history.size();
-        }
+        getline(cin, command);
 
         vector<string> args = parse_command(command);
         if (!args.empty()) {
