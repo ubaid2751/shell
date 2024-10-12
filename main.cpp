@@ -7,9 +7,20 @@
 #include<unistd.h>
 #include<sys/wait.h>
 #include<limits.h>
+#include<termios.h>
 using namespace std;
 
+#define RESET   "\x1b[0m"
+#define BOLD    "\x1b[1m"
+#define RED     "\x1b[31m"
+#define GREEN   "\x1b[32m"
+#define YELLOW  "\x1b[33m"
+#define BLUE    "\x1b[34m"
+#define MAGENTA "\x1b[35m"
+#define CYAN    "\x1b[36m"
+
 string builtins_cmds[] = {"echo", "exit", "type", "cd"};
+vector<string> history;
 
 string get_path(string command) {
     string path_env = getenv("PATH");
@@ -150,14 +161,20 @@ string currdir() {
 int main() {
     string command;
     bool exit = 0;
+    int history_idx = 0;
 
     while(!exit) {
         cout << unitbuf;
         cerr << unitbuf;
 
-        cout << currdir() << ":";
-        cout << "$ ";
+        cout << GREEN << BOLD << currdir() << RESET << ":";
+        cout << BLUE << BOLD << "~$ " << RESET;
         getline(cin, command);
+
+        if(!command.empty()) {
+            history.push_back(command);
+            history_idx = history.size();
+        }
 
         vector<string> args = parse_command(command);
         if (!args.empty()) {
