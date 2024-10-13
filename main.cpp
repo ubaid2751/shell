@@ -20,9 +20,17 @@ using namespace std;
 #define MAGENTA "\x1b[35m"
 #define CYAN    "\x1b[36m"
 
-#define ctrl(x) ((x) & 0x1f)
+#define PRINT_PROMPT(input) do { \
+    cout << "\r" << GREEN << BOLD << currdir() << RESET << ":"; \
+    cout << BLUE << BOLD << "~$ " << RESET << "\033[K" << input; \
+    cout.flush(); \
+} while (0)
+
 
 string builtins_cmds[] = {"echo", "exit", "type", "cd"};
+
+vector<string> command_history;
+int history_index = -1;
 
 string get_path(string command) {
     string path_env = getenv("PATH");
@@ -158,12 +166,78 @@ string currdir() {
 
 void sigint_handler(int sig) {
     if(sig == 2) {
-        cout << "\n";
+        cout << "^C\n";
         cout << GREEN << BOLD << currdir() << RESET << ":";
         cout << BLUE << BOLD << "~$ " << RESET;
         cout.flush();
     }
 }
+
+void set_raw_mode(termios &old_term) {
+    termios new_term;
+    tcgetattr(STDIN_FILENO, &old_term);
+    new_term = old_term;
+    new_term.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+}
+
+void restore_terminal(const termios &old_term) {
+    tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+}
+
+string read_command_with_history() {
+    termios old_term;
+    set_raw_mode(old_term);
+    
+    string input = "";
+    char ch;
+    
+    while (read(STDIN_FILENO, &ch, 1) == 1) {
+        if (ch == 127) {
+            if (!input.empty()) {
+                input.pop_back();
+                cout << "\b \b";
+            }
+        } else if (ch == '\n') {
+            cout << endl;
+            break;
+        } else if (ch == '\033') {
+            char seq[2];
+            if (read(STDIN_FILENO, seq, 2) == 2) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'A') {
+                        if (history_index > 0) {
+                            history_index--;
+                            input = command_history[history_index];
+                            PRINT_PROMPT(input);
+                            cout.flush();
+                        }
+                    } else if (seq[1] == 'B') {
+                        if (history_index < command_history.size() - 1) {
+                            history_index++;
+                            input = command_history[history_index];
+                            PRINT_PROMPT(input);
+                            cout.flush();
+                        } else {
+                            history_index = command_history.size();
+                            input.clear();
+                            PRINT_PROMPT(input);
+                            cout.flush();
+                        }
+                    }
+                }
+            }
+        } else {
+            input += ch;
+            cout << ch;
+        }
+    }
+    
+    restore_terminal(old_term);
+    
+    return input;
+}
+
 
 int main() {
     string command;
@@ -178,12 +252,15 @@ int main() {
         cout << GREEN << BOLD << currdir() << RESET << ":";
         cout << BLUE << BOLD << "~$ " << RESET;
 
-        getline(cin, command);
-
-        vector<string> args = parse_command(command);
-        if (!args.empty()) {
-            if (!handle_command(args)) {
-                cout << command << ": command not found\n";
+        command = read_command_with_history();
+        if (!command.empty()) {
+            command_history.push_back(command);  // Add command to history
+            history_index = command_history.size();  // Reset history index
+            vector<string> args = parse_command(command);
+            if (!args.empty()) {
+                if (!handle_command(args)) {
+                    cout << command << ": command not found\n";
+                }
             }
         }
     }
