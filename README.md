@@ -57,31 +57,31 @@ Example Usage
 
     bash
 
-~$ cd /path/to/directory
-
-Echo text:
-
-bash
-
-~$ echo Hello, World!
-
-Check if echo is a built-in command:
-
-bash
-
-~$ type echo
-
-Run an external program:
-
-bash
-
-~$ ls -la
-
-Exit the shell:
-
-bash
-
-    ~$ exit
+    ~$ cd /path/to/directory
+    
+    Echo text:
+    
+    bash
+    
+    ~$ echo Hello, World!
+    
+    Check if echo is a built-in command:
+    
+    bash
+    
+    ~$ type echo
+    
+    Run an external program:
+    
+    bash
+    
+    ~$ ls -la
+    
+    Exit the shell:
+    
+    bash
+    
+        ~$ exit
 
 ## Known Limitations
 
