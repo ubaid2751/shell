@@ -26,6 +26,7 @@ using namespace std;
     cout.flush(); \
 } while (0)
 
+#define MAIN_FILE "#include<iostream>\n\nusing namespace std;\n\nint main() {\n    cout << \"Hello, World!\" << endl;\n    return 0;\n}\n"
 
 string builtins_cmds[] = {"echo", "exit", "type", "cd"};
 
@@ -79,6 +80,23 @@ bool search(string cmd) {
     return false;
 }
 
+string currdir() {
+    char cwd[PATH_MAX];
+
+    if(getcwd(cwd, sizeof(cwd)) != NULL) {
+        return (string)cwd;
+    } else {
+        cerr << "Failed_to_recognise_directory\n";
+    }
+
+    return "";
+}
+
+void remove_Project_Folder(string foldername) {
+    string path = currdir() + "/" + foldername;
+    filesystem::remove_all(path);
+}
+
 bool handle_command(vector<string> &command) {
     if(command[0] == "exit") {
         if(command.size() == 2) {
@@ -127,6 +145,57 @@ bool handle_command(vector<string> &command) {
         }
     }
 
+    if(command[0] == "generate" && command[1] == "project") {
+        vector<const char*> foldnames = {"src", "include", "bin", "lib", "docs"};
+        vector<const char*> filenames = {".gitignore", "build.sh", "docs/README.md", "src/main.cpp"};
+        if(command.size() != 3) {
+            cout << "Usage: generate project <foldername>\n";
+            return 1;
+        }
+        else {
+            string foldername = command[2];
+            string path = currdir() + "/" + foldername;
+            if(filesystem::exists(path)) {
+                cout << "genProFolder: " << foldername << ": File exists\n";
+                return 1;
+            }
+            if(filesystem::create_directory(path)) {
+                cout << "genProFolder: " << foldername << " created\n";
+
+                for (const auto& folder : foldnames) {
+                    string fullpath = path + "/" + folder;
+                    if (!filesystem::create_directory(fullpath)) {
+                        std::cerr << "Failed to create directory: " << fullpath << "\n";
+                        remove_Project_Folder(foldername);
+                    }
+                }
+
+                for (const auto& file : filenames) {
+                    std::string fullpath = path + "/" + file;
+                    FILE* f = fopen(fullpath.c_str(), "w");
+
+                    if (f == NULL) {
+                        std::cerr << "Failed to create file: " << fullpath << "\n";
+                        remove_Project_Folder(foldername);
+                    } else {
+                        if(file == "src/main.cpp") {
+                            fprintf(f, "%s", MAIN_FILE);
+                        }
+                        fclose(f);
+                    }
+                }
+
+                cout << "genProFolder: " << foldername << ": created\n";
+                cout << "src/main.cpp\n docs/README.md\n";
+                return 1;
+            }
+            else {
+                cout << "genProFolder: " << foldername << ": Failed to create folder\n";
+                return 1;
+            }
+        }
+    }
+
     pid_t pid = fork();
     if(pid == -1) {
         cerr << "Failed to fork\n";
@@ -150,18 +219,6 @@ bool handle_command(vector<string> &command) {
     }
 
     return 0;
-}
-
-string currdir() {
-    char cwd[PATH_MAX];
-
-    if(getcwd(cwd, sizeof(cwd)) != NULL) {
-        return (string)cwd;
-    } else {
-        cerr << "Failed_to_recognise_directory\n";
-    }
-
-    return "";
 }
 
 void sigint_handler(int sig) {

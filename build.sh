@@ -1,1 +1,1 @@
-g++ main.cpp -o shell -std=c++17
+g++ main.cpp -o ubash -std=c++17
