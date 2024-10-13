@@ -81,7 +81,7 @@ Example Usage
     
     bash
     
-        ~$ exit
+    ~$ exit
 
 ## Known Limitations
 
