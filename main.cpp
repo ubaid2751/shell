@@ -210,19 +210,16 @@ string read_command_with_history() {
                             history_index--;
                             input = command_history[history_index];
                             PRINT_PROMPT(input);
-                            cout.flush();
                         }
                     } else if (seq[1] == 'B') {
                         if (history_index < command_history.size() - 1) {
                             history_index++;
                             input = command_history[history_index];
                             PRINT_PROMPT(input);
-                            cout.flush();
                         } else {
                             history_index = command_history.size();
                             input.clear();
                             PRINT_PROMPT(input);
-                            cout.flush();
                         }
                     }
                 }
