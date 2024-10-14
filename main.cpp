@@ -292,7 +292,6 @@ string read_command_with_history() {
     return input;
 }
 
-
 int main() {
     string command;
     bool exit = 0;
